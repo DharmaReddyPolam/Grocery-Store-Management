@@ -1,0 +1,297 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+#define MAX_PRODUCTS 100
+
+typedef struct {
+    int id;
+    char name[50];
+    double price;
+    int quantity;
+} Product;
+
+typedef struct {
+    Product products[MAX_PRODUCTS];
+    int count;
+} Inventory;
+
+typedef struct {
+    int productId;
+    int quantity;
+} CartItem;
+
+typedef struct {
+    CartItem items[MAX_PRODUCTS];
+    int count;
+    double totalAmount;
+} ShoppingCart;
+
+void initializeInventory(Inventory* inventory) {
+    inventory->count = 0;
+}
+
+void addProduct(Inventory* inventory, int id, const char* name, double price, int quantity) {
+    if (inventory->count >= MAX_PRODUCTS) {
+        printf("Inventory is full. Cannot add more products.\n");
+        return;
+    }
+
+    Product newProduct;
+    newProduct.id = id;
+    
+snprintf(newProduct.name, sizeof(newProduct.name), "%s", name);
+    newProduct.price = price;
+    newProduct.quantity = quantity;
+
+    inventory->products[inventory->count] = newProduct;
+    inventory->count++;
+
+    printf("Product added successfully.\n");
+}
+
+void displayInventory(const Inventory* inventory) {
+    printf("Inventory:\n");
+    int i;
+    for ( i = 0; i < inventory->count; i++) {
+        Product product = inventory->products[i];
+        printf("ID: %d, Name: %s, Price: %.2f, Quantity: %d\n", product.id, product.name, product.price, product.quantity);
+    }
+}
+
+bool searchProduct(const Inventory* inventory, int id, Product* product) {
+	int i;
+    for ( i = 0; i < inventory->count; i++) {
+        if (inventory->products[i].id == id) {
+            *product = inventory->products[i];
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void initializeCart(ShoppingCart* cart) {
+    cart->count = 0;
+    cart->totalAmount = 0.0;
+}
+
+void addToCart(ShoppingCart* cart, const Inventory* inventory, int productId, int quantity) {
+    if (cart->count >= MAX_PRODUCTS) {
+        printf("Cart is full. Cannot add more items.\n");
+        return;
+    }
+
+    Product product;
+   
+ if (!searchProduct(inventory, productId, &product)) {
+        printf("Product not found in inventory.\n");
+        return;
+    }
+
+    if (product.quantity < quantity) {
+        printf("Insufficient quantity available in the inventory.\n");
+        return;
+    }
+
+    CartItem newItem;
+    newItem.productId = productId;
+    newItem.quantity = quantity;
+
+    cart->items[cart->count] = newItem;
+    cart->count++;
+
+    cart->totalAmount += (product.price * quantity);
+
+    printf("Item added to cart successfully.\n");
+}
+
+void removeItemFromCart(ShoppingCart* cart, const Inventory* inventory, int productId) {
+    int foundIndex = -1;
+    double removedAmount = 0.0;
+    int i;
+    for ( i = 0; i < cart->count; i++) {
+        if (cart->items[i].productId == productId) {
+            foundIndex = i;
+            break;
+        }
+    }
+
+    if (foundIndex == -1) {
+        printf("Item not found in the cart.\n");
+        return;
+    }
+
+    CartItem removedItem = cart->items[foundIndex];
+
+    Product product;
+    if (searchProduct(inventory, productId, &product)) {
+        removedAmount = (product.price * removedItem.quantity);
+        product.quantity += removedItem.quantity;
+
+    }
+    for ( i = foundIndex; i < cart->count - 1; i++) {
+        cart->items[i] = cart->items[i + 1];
+    }
+
+    cart->count--;
+    cart->totalAmount -= removedAmount;
+
+    printf("Item removed from cart successfully.\n");
+}
+
+void displayCart(const ShoppingCart* cart, const Inventory* inventory) {
+    printf("Shopping Cart:\n");
+    int i;
+    for ( i = 0; i < cart->count; i++) {
+        CartItem item = cart->items[i];
+
+        Product product;
+        if (searchProduct(inventory, item.productId, &product)) {
+            printf("Product: %s, Price: %.2f, Quantity: %d, Total: %.2f\n",
+                product.name, product.price, item.quantity, product.price * item.quantity);
+        }
+    }
+
+    printf("Total Amount: %.2f\n", cart->totalAmount);
+}
+
+void checkout(ShoppingCart* cart, Inventory* inventory) {
+    printf("Checkout Summary:\n");
+    displayCart(cart, inventory);
+
+    if (cart->totalAmount <= 0.0) {
+        printf("No items in the cart. Nothing to checkout.\n");
+        return;
+    }
+
+    char confirmation;
+    printf("Confirm checkout (y/n): ");
+    scanf(" %c", &confirmation);
+
+    if (confirmation == 'y' || confirmation == 'Y') {
+        printf("Checkout completed. Total amount to pay: %.2f\n", cart->totalAmount);
+        int i;
+       
+ for ( i = 0; i < cart->count; i++) {
+            CartItem item = cart->items[i];
+
+            Product* product;
+            if (searchProduct(inventory, item.productId, &product)) {
+                product->quantity -= item.quantity;
+            }
+        }
+
+        initializeCart(cart);
+    } else {
+        printf("Checkout canceled.\n");
+    }
+}
+
+void generateReport(const Inventory* inventory) {
+    printf("Inventory Report:\n");
+
+    double totalValue = 0.0;
+    int i;
+    for ( i = 0; i < inventory->count; i++) {
+        Product product = inventory->products[i];
+        double value = product.price * product.quantity;
+        totalValue += value;
+
+        printf("ID: %d, Name: %s, Price: %.2f, Quantity: %d, Value: %.2f\n",
+            product.id, product.name, product.price, product.quantity, value);
+    }
+
+    printf("Total Inventory Value: %.2f\n", totalValue);
+}
+
+int main() {
+    Inventory inventory;
+    initializeInventory(&inventory);
+
+    ShoppingCart cart;
+    initializeCart(&cart);
+
+    int choice;
+    int id;
+    char name[50];
+    double price;
+    int quantity;
+
+   
+ do {
+        printf("\n--Grocery Store--\n");
+        printf("1. Add Product\n");
+        printf("2. Display Inventory\n");
+        printf("3. Search Product\n");
+        printf("4. Add to Cart\n");
+        printf("5. Remove Item from Cart\n");
+        printf("6. Display Cart\n");
+        printf("7. Checkout\n");
+        printf("8. Generate Inventory Report\n");
+        printf("9. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                printf("Enter product ID: ");
+                scanf("%d", &id);
+                printf("Enter product name: ");
+                scanf("%s", name);
+                printf("Enter product price: ");
+                scanf("%lf", &price);
+                printf("Enter product quantity: ");
+                scanf("%d", &quantity
+
+);
+                addProduct(&inventory, id, name, price, quantity);
+                break;
+            case 2:
+                displayInventory(&inventory);
+                break;
+            case 3:
+                printf("Enter product ID: ");
+                scanf("%d", &id);
+                Product product;
+                if (searchProduct(&inventory, id, &product)) {
+                    printf("Product found:\n");
+                    printf("ID: %d, Name: %s, Price: %.2f, Quantity: %d\n",
+                        product.id, product.name, product.price, product.quantity);
+                } else {
+                    printf("Product not found.\n");
+                }
+                break;
+            case 4:
+                printf("Enter product ID: ");
+               
+ scanf("%d", &id);
+                printf("Enter quantity: ");
+                scanf("%d", &quantity);
+                addToCart(&cart, &inventory, id, quantity);
+                break;
+            case 5:
+                printf("Enter product ID: ");
+                scanf("%d", &id);
+                removeItemFromCart(&cart, &inventory, id);
+                break;
+            case 6:
+                displayCart(&cart, &inventory);
+                break;
+            case 7:
+                checkout(&cart, &inventory);
+                break;
+            case 8:
+                generateReport(&inventory);
+                break;
+            case 9:
+                printf("Exiting program.\n");
+                break;
+            default:
+                printf("Invalid choice. Please try again.\n");
+                break;
+        }
+    } while (choice != 9);
+
+    return 0;
+} 
